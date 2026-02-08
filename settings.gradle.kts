@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Calculator_CMSC495"
+rootProject.name = "AndroidCalculatorCMSC"
 include(":app")
  
