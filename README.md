@@ -1,7 +1,33 @@
-This is the Phase 1 calculator I have designed. It builds on features the team wants and is set up to be expanded in the future.
+🧭 Team Workflow
 
-To clone the repository:
-```
-git clone https://github.com/jsadegh/AndroidCalculatorCMSC495.git
-```
+This repository follows a simple, structured workflow to keep the project stable, collaborative, and easy to manage.
+
+🌱 Branch Structure
+
+main
+Final, stable version of the application.
+
+Always runnable
+
+Used for grading, demos, and milestones
+
+Protected (no direct pushes)
+
+dev
+Team integration branch.
+
+Where completed features are merged and tested together
+
+Acts as the staging area before moving to main
+
+Personal work branches
+Each team member has a dedicated workspace:
+
+work/christy
+
+work/member2
+
+work/member3
+
+work/member4
 
