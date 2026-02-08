@@ -1,33 +1,44 @@
-🧭 Team Workflow
+## Team Workflow
 
-This repository follows a simple, structured workflow to keep the project stable, collaborative, and easy to manage.
+This repository follows a structured branch workflow to keep development organized, stable, and easy to collaborate on.
 
-🌱 Branch Structure
+---
 
-main
-Final, stable version of the application.
+### Branch Structure
 
-Always runnable
+| Branch | Purpose |
+|------|--------|
+| **`main`** | Final, stable version of the app. Always runnable. Used for grading and demos. **Protected.** |
+| **`dev`** | Team integration branch where completed work is merged and tested together. |
+| **`work/*`** | Personal workspaces for each team member. |
 
-Used for grading, demos, and milestones
+**Personal branches:**
+- `work/christy`
+- `work/member2`
+- `work/member3`
+- `work/member4`
 
-Protected (no direct pushes)
+---
 
-dev
-Team integration branch.
+### Development Flow
 
-Where completed features are merged and tested together
+1. **Start from `dev`**
+   - Ensure `dev` is up to date before beginning work.
 
-Acts as the staging area before moving to main
+2. **Work in your personal branch**
+   - Switch to your assigned `work/<name>` branch.
+   - Commit changes freely while developing.
 
-Personal work branches
-Each team member has a dedicated workspace:
+3. **Open a Pull Request**
+   - When ready, open a PR:
+     - **From:** `work/<name>`
+     - **Into:** `dev`
+   - Include a brief description of your changes.
 
-work/christy
+4. **Review & Merge**
+   - Pull requests are reviewed for build stability and conflicts.
+   - Approved PRs are merged into `dev`.
 
-work/member2
-
-work/member3
-
-work/member4
+5. **Release to `main`**
+   - When `dev` is stable and ready for submission or demo, it is merged into `main`.
 
