@@ -14,9 +14,9 @@ This repository follows a structured branch workflow to keep development organiz
 
 **Personal branches:**
 - `work/christy`
-- `work/member2`
-- `work/member3`
-- `work/member4`
+- `work/jared`
+- `work/tyler`
+- `work/dakota`
 
 ---
 
