@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Calculator_CMSC495" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- App theme used by the Manifest -->
+    <style name="Theme.Calculator_CMSC495" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Keep empty unless you need overrides -->
+    </style>
+
 </resources>
