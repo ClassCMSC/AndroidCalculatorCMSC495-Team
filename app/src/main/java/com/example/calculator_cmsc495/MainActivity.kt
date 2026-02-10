@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn          // Scrollable history list
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.*
 import androidx.compose.runtime.*                            // Compose state
 import androidx.compose.ui.Alignment
@@ -67,6 +70,7 @@ fun CalculatorScreen() {
     // --- Calculator state ---
     var currentValue by remember { mutableStateOf(0.0) }     // number being typed/used
     var previousValue by remember { mutableStateOf(0.0) }    // stored value before operator
+    val haptic = LocalHapticFeedback.current // haptics for taps
     var displayText by remember { mutableStateOf("0") }      // what user sees
     var operation by remember { mutableStateOf("") }         // +, -, ×, ÷
     var isNewNumber by remember { mutableStateOf(true) }     // are we starting fresh input?
@@ -192,6 +196,22 @@ fun CalculatorScreen() {
                         fontSize = 20.sp,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
+                     
+                     Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                    TextButton(
+                        onClick = { // Clear all saved calculations
+                        history = emptyList()
+
+            // Stronger haptic for destructive action
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
+                         ) {
+                     Text("Clear", color = CalcColors.HistoryTitleText)
+                     }
+                  }
 
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(history) { item ->
