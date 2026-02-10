@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn          // Scrollable history list
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable                     // Makes UI elements respond to taps
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType     // Types of haptic feedback (tap, long press, etc.)
+import androidx.compose.ui.platform.LocalHapticFeedback           // Access to the device’s haptic engine from Compose
 import androidx.compose.material3.*
 import androidx.compose.runtime.*                            // Compose state
 import androidx.compose.ui.Alignment
