@@ -1,22 +1,28 @@
 package com.example.calculator_cmsc495
 
-import kotlin.math.* // Math helpers (reserved for future)
 import android.os.Bundle
+import kotlin.math.* // Math helpers (reserved for future)
+
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.clickable // Tap history rows
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn // Scrollable history list
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material3.*
+
 import androidx.compose.runtime.* // Compose state
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType // Haptic types
+import androidx.compose.ui.platform.LocalHapticFeedback // Haptic engine access
+
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,81 +31,78 @@ import androidx.compose.ui.unit.sp
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Host the Compose UI.
         setContent { CalculatorScreen() }
     }
 }
 
-// Tiny container for “expression = result” history rows.
+// Data model for “expression = result” history rows.
 class CalcHistory(
     val expression: String,
     val result: String
 )
 
-// Glitter-gold + plum + ink palette.
-// Only tweak these values to re-skin everything.
+// App color palette (single source of truth).
 private object CalcColors {
-
     // App surfaces
-    val Frame = Color(0xFF0B0B0E)       // ink black (background)
-    val Display = Color(0xFFF2E7D6)     // warm parchment
-    val DisplayText = Color(0xFF0B0B0E) // ink text
+    val Frame = Color(0xFF0B0B0E)       // background
+    val Display = Color(0xFFF2E7D6)     // display surface
+    val DisplayText = Color(0xFF0B0B0E) // display text
 
     // History surfaces
-    val HistoryPanel = Color(0xFF141019)     // deep plum-ink
-    val HistoryCard = Color(0xFF1B1422)      // slightly lighter plum
+    val HistoryPanel = Color(0xFF141019)
+    val HistoryCard = Color(0xFF1B1422)
     val HistoryTitleText = Color(0xFFF7EEDC)
     val HistoryItemText = Color(0xFFEFE3CF)
 
     // Buttons
-    val NumberBtn = Color(0xFF161218)   // ink charcoal (numbers)
-    val OperatorBtn = Color(0xFFD4AF37) // classic gold (ops)
-    val EqualsBtn = Color(0xFFFFD66B)   // bright gold (equals)
+    val NumberBtn = Color(0xFF161218)
+    val OperatorBtn = Color(0xFFD4AF37)
+    val EqualsBtn = Color(0xFFFFD66B)
 
-    val ClearBtn = Color(0xFF5B0F1A)     // deep wine (AC)
-    val BackspaceBtn = Color(0xFFB8872B) // warm gold-brown (⌫)
-    val HistoryBtn = Color(0xFF4B1F6F)   // plum purple (⏱)
+    val ClearBtn = Color(0xFF5B0F1A)
+    val BackspaceBtn = Color(0xFFB8872B)
+    val HistoryBtn = Color(0xFF4B1F6F)
 
     // Text
-    val BtnText = Color(0xFFF8F2E6) // warm off-white
+    val BtnText = Color(0xFFF8F2E6)
 }
 
 @Composable
 fun CalculatorScreen() {
 
-    // --- Calculator state ---
-    var currentValue by remember { mutableStateOf(0.0) }     // active number
-    var previousValue by remember { mutableStateOf(0.0) }    // stored value before operator
-    var displayText by remember { mutableStateOf("0") }      // what user sees
-    var operation by remember { mutableStateOf("") }         // +, -, ×, ÷
-    var isNewNumber by remember { mutableStateOf(true) }     // fresh input flag
-    var history by remember { mutableStateOf(listOf<CalcHistory>()) }
-    var showHistory by remember { mutableStateOf(false) }
+    // Haptics handle (used across UI events).
+    val haptic = LocalHapticFeedback.current
 
-    val haptic = LocalHapticFeedback.current // haptics for taps
+    // ---- Calculator state (single screen) ----
+    var currentValue by remember { mutableStateOf(0.0) }           // number being edited
+    var previousValue by remember { mutableStateOf(0.0) }          // stored before operator
+    var displayText by remember { mutableStateOf("0") }            // what user sees
+    var operation by remember { mutableStateOf("") }               // "+", "-", "×", "÷"
+    var isNewNumber by remember { mutableStateOf(true) }           // next digit starts fresh
+    var history by remember { mutableStateOf(listOf<CalcHistory>()) } // immutable list state
+    var showHistory by remember { mutableStateOf(false) }          // panel toggle
 
-    // Adds digits (or decimal) to the display.
+    // Append digits/decimal to displayText.
     fun appendNumber(num: String) {
         if (isNewNumber) {
-            // Start new number: "." becomes "0."
+            // Start new entry (normalize ".").
             displayText = if (num == ".") "0." else num
             isNewNumber = false
         } else {
-            // Block multiple decimals
+            // Block double decimals.
             if (num == "." && displayText.contains(".")) return
 
-            // Replace leading zero unless we're typing a decimal
-            displayText = if (displayText == "0" && num != ".") {
-                num
-            } else {
-                displayText + num
-            }
+            // Replace leading zero unless typing a decimal.
+            displayText = if (displayText == "0" && num != ".") num else displayText + num
         }
 
-        // Keep numeric state synced
+        // Keep numeric state synced.
         currentValue = displayText.toDoubleOrNull() ?: 0.0
     }
 
-    // Deletes the last character, or resets if empty.
+    // Remove last char; fallback to "0".
     fun backspace() {
         if (!isNewNumber && displayText.length > 1) {
             displayText = displayText.dropLast(1)
@@ -111,7 +114,7 @@ fun CalculatorScreen() {
         }
     }
 
-    // Runs the current operation and formats the result nicely.
+    // Evaluate current operation.
     fun calculate() {
         val result = when (operation) {
             "+" -> previousValue + currentValue
@@ -121,7 +124,7 @@ fun CalculatorScreen() {
             else -> currentValue
         }
 
-        // "Error" for invalid math, otherwise clean formatting
+        // Format output for readability.
         val resultText =
             if (result.isNaN()) {
                 "Error"
@@ -131,7 +134,7 @@ fun CalculatorScreen() {
                 String.format("%.8f", result).trimEnd('0').trimEnd('.')
             }
 
-        // Store history only when an operation happened
+        // Only log history when an operator was used.
         if (operation.isNotEmpty()) {
             history = history + CalcHistory(
                 expression = "$previousValue $operation $currentValue",
@@ -139,7 +142,7 @@ fun CalculatorScreen() {
             )
         }
 
-        // Reset for next input
+        // Reset op state for next entry.
         displayText = resultText
         currentValue = result
         previousValue = 0.0
@@ -147,19 +150,18 @@ fun CalculatorScreen() {
         isNewNumber = true
     }
 
-    // Stores the operator and prepares for the next number.
+    // Store operator, optionally auto-calc for chaining.
     fun executeOperation(oper: String) {
-        // Allows chaining like 2 + 3 + 4
         if (operation.isNotEmpty() && !isNewNumber) {
+            // Example: 2 + 3 + 4 → calc before switching operator.
             calculate()
         }
-
         previousValue = currentValue
         operation = oper
         isNewNumber = true
     }
 
-    // Full reset.
+    // Reset calculator state (does not clear history).
     fun clear() {
         displayText = "0"
         currentValue = 0.0
@@ -168,7 +170,7 @@ fun CalculatorScreen() {
         isNewNumber = true
     }
 
-    // --- UI ---
+    // ---- UI layout ----
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -176,7 +178,7 @@ fun CalculatorScreen() {
             .padding(16.dp)
     ) {
 
-        // History panel (toggle with ⏱)
+        // History panel (toggle with ⏱).
         if (showHistory) {
             Card(
                 modifier = Modifier
@@ -187,53 +189,61 @@ fun CalculatorScreen() {
             ) {
                 Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
 
-                    Text(
-                        text = "History",
-                        color = CalcColors.HistoryTitleText,
-                        fontSize = 20.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    // Clear history (safe + obvious)
+                    // Header row: title + Clear action.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Text(
+                            text = "History",
+                            color = CalcColors.HistoryTitleText,
+                            fontSize = 20.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Clear history (destructive action).
                         TextButton(
                             onClick = {
-                                history = emptyList() // clear saved calculations
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress) // stronger buzz
+                                history = emptyList()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             }
                         ) {
                             Text("Clear", color = CalcColors.HistoryTitleText)
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // History list
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(history) { item ->
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 5.dp)
-                                    .clickable {
-                                        // Tap-to-reuse result
-                                        displayText = item.result
-                                        currentValue = item.result.toDoubleOrNull() ?: 0.0 // safe for "Error"
-
-                                        // Reset pending operation
-                                        previousValue = 0.0
-                                        operation = ""
-                                        isNewNumber = true
-
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // light buzz
-                                    },
+                                    .padding(vertical = 5.dp),
                                 colors = CardDefaults.cardColors(containerColor = CalcColors.HistoryCard)
                             ) {
+                                // Tap row → reuse result as next input.
                                 Text(
                                     text = "${item.expression} = ${item.result}",
                                     color = CalcColors.HistoryItemText,
                                     fontSize = 16.sp,
-                                    modifier = Modifier.padding(10.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            // Reuse result safely ("Error" becomes 0.0)
+                                            displayText = item.result
+                                            currentValue = item.result.toDoubleOrNull() ?: 0.0
+
+                                            // Reset operation so we don't chain old ops.
+                                            previousValue = 0.0
+                                            operation = ""
+                                            isNewNumber = true
+
+                                            // Light feedback.
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        }
+                                        .padding(10.dp)
                                 )
                             }
                         }
@@ -242,7 +252,7 @@ fun CalculatorScreen() {
             }
         }
 
-        // Display area (shrinks when history is open)
+        // Display area (shrinks when history is open).
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -312,11 +322,12 @@ fun CalcButton(
     backgroundColor: Color,
     onClick: () -> Unit
 ) {
-    val haptic = LocalHapticFeedback.current // button haptics
+    val haptic = LocalHapticFeedback.current // haptics for button taps
 
     Button(
         onClick = {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // tap feedback
+            // Light feedback first, then run button logic.
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onClick()
         },
         modifier = modifier.height(80.dp).padding(5.dp),
