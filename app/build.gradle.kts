@@ -53,4 +53,5 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     testImplementation(libs.junit)
+    implementation("net.objecthunter:exp4j:0.4.8")
 }

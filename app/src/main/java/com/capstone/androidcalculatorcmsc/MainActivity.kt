@@ -1,6 +1,7 @@
 package com.capstone.androidcalculatorcmsc
 
 import kotlin.math.*                     // Math helpers (some reserved for future)
+import net.objecthunter.exp4j.ExpressionBuilder //Used for expressions and order of operations
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,8 +30,8 @@ class MainActivity : ComponentActivity() {
 
 // Tiny container for “expression = result” history rows.
 class CalcHistory(
-    val expression: String,
-    val result: String
+    val historyExpression: String,
+    val historyResult: String
 )
 
 // Glitter-gold + plum + ink palette.
@@ -65,106 +66,109 @@ private object CalcColors {
 fun CalculatorScreen() {
 
     // --- Calculator state ---
-    var currentValue by remember { mutableStateOf(0.0) }     // number being typed/used
-    var previousValue by remember { mutableStateOf(0.0) }    // stored value before operator
+    var expression by remember { mutableStateOf("") }   //current expression
     var displayText by remember { mutableStateOf("0") }      // what user sees
-    var operation by remember { mutableStateOf("") }         // +, -, ×, ÷
-    var isNewNumber by remember { mutableStateOf(true) }     // are we starting fresh input?
+    var expressionEnded by remember { mutableStateOf(false) }   //tracks when the expression ends
     var history by remember { mutableStateOf(listOf<CalcHistory>()) }
     var showHistory by remember { mutableStateOf(false) }
 
-    // Adds digits (or decimal) to the display.
+    // Adds digits (or decimal) to the current expression
     fun appendNumber(num: String) {
-
-        if (isNewNumber) {
-            // Starting a fresh number: "." becomes "0." like a normal calculator.
-            displayText = if (num == ".") "0." else num
-            isNewNumber = false
+        if (expressionEnded) {
+            expression = num //creates a new expression if "equals" has been hit
+            expressionEnded = false
         } else {
-            // Don't allow multiple decimals.
-            if (num == "." && displayText.contains(".")) return
-
-            // Replace leading zero unless we're typing a decimal.
-            displayText = if (displayText == "0" && num != ".") {
-                num
-            } else {
-                // IMPORTANT: must assign back, or multi-digit input “does nothing”.
-                displayText + num
-            }
+            expression += num
         }
-
-        // Keep numeric state synced to the display.
-        currentValue = displayText.toDoubleOrNull() ?: 0.0
+        displayText = expression.ifEmpty{"0"}
     }
 
-    // Deletes the last character, or resets if we're basically empty.
-    fun backspace() {
-        if (!isNewNumber && displayText.length > 1) {
-            displayText = displayText.dropLast(1)
-            currentValue = displayText.toDoubleOrNull() ?: 0.0
-        } else {
-            displayText = "0"
-            currentValue = 0.0
-            isNewNumber = true
+    //Adds an operator to the expression when valid
+    fun appendOperator(oper : String) {
+        if (expression.isNotEmpty() && (expression.last().isDigit() || expression.last() == ')')) {
+            expression += oper
+            displayText = expression
         }
+        expressionEnded = false //allows the expression to continue
     }
 
-    // Runs the current operation and formats the result nicely.
+    //Keeps track of parentheses used in the expression and adds open/close
+    //parentheses as needed
+    fun addParentheses() {
+        val countOpenParentheses = expression.count { char -> char == '(' }
+        val countClosedParentheses = expression.count { char -> char == ')' }
+
+        if (expression.isEmpty() || expression.last() in setOf('+', '-', '×', '÷', '(')) {
+            expression += "("
+            //closes any open parentheses
+        } else if (countOpenParentheses > countClosedParentheses) {
+            expression += ")"
+            //adds multiplication operator to display if the last entry is not
+            //multiply (a number adjacent to open parentheses implies multiplication)
+        } else if (expression.last() != '×') {
+            expression += "×("
+            //if multiply is selected, omit the multiplication operator
+            //on the display
+        } else
+            expression += "("
+        displayText = expression
+        expressionEnded = false
+    }
+
+    //formats a double into a usable String
+    fun Double.formatNumber() : String {
+        return if (this.isNaN() || this.isInfinite()) {
+            "Error"
+        } else
+            String.format("%.8f", this).trimEnd('0').trimEnd('.')
+    }
+
+    //formats to make a String compatible with exp4j
+    fun String.formatToExp4j() : String {
+        return this.replace("×", "*")
+            .replace("÷", "/")
+    }
+
     fun calculate() {
-
-        val result = when (operation) {
-            "+" -> previousValue + currentValue
-            "-" -> previousValue - currentValue
-            "×" -> previousValue * currentValue
-            "÷" -> if (currentValue != 0.0) previousValue / currentValue else Double.NaN
-            else -> currentValue
+        if (expression.isEmpty()) {
+            return
         }
+        try {
+            //build -> parses the expression & checks for errors (exp4j)
+            //evaluate -> calculates the expression and returns double
+            val result = ExpressionBuilder(expression.formatToExp4j()).build().evaluate()
 
-        // "Error" for invalid math, otherwise clean formatting.
-        val resultText =
-            if (result.isNaN()) {
-                "Error"
-            } else if (result % 1.0 == 0.0) {
-                result.toLong().toString()
-            } else {
-                String.format("%.8f", result).trimEnd('0').trimEnd('.')
-            }
+            val resultText = result.formatNumber()
 
-        // Only add history when a real operation happened.
-        if (operation.isNotEmpty()) {
-            history = history + CalcHistory(
-                expression = "$previousValue $operation $currentValue",
-                result = resultText
-            )
+            //add to history
+            history += CalcHistory(historyExpression = expression,
+                historyResult = resultText)
+
+            displayText = resultText
+            expression = resultText
+            expressionEnded = true
+
+            //display error properly in case of exception
+        } catch(e: Exception) {
+            displayText = "Error"
+            history += CalcHistory(historyExpression = expression,
+                historyResult = "Error")
         }
-
-        // Reset for next input.
-        displayText = resultText
-        currentValue = result
-        previousValue = 0.0
-        operation = ""
-        isNewNumber = true
     }
 
-    // Stores the operator and prepares for the next number.
-    fun executeOperation(oper: String) {
-        // Allows chaining like 2 + 3 + 4 (auto-calc before switching ops).
-        if (operation.isNotEmpty() && !isNewNumber) {
-            calculate()
+    // Deletes the last character, or resets to 0 if the expression is empty
+    fun backspace() {
+        if (expression.isNotEmpty()) {
+            expression = expression.dropLast(1)
+            displayText = if (expression.isEmpty()) "0" else expression
         }
-
-        previousValue = currentValue
-        operation = oper
-        isNewNumber = true
     }
 
     // Full reset.
     fun clear() {
         displayText = "0"
-        currentValue = 0.0
-        previousValue = 0.0
-        operation = ""
-        isNewNumber = true
+        expression = ""
+        expressionEnded = true
     }
 
     // --- UI ---
@@ -202,7 +206,7 @@ fun CalculatorScreen() {
                                 colors = CardDefaults.cardColors(containerColor = CalcColors.HistoryCard)
                             ) {
                                 Text(
-                                    text = "${item.expression} = ${item.result}",
+                                    text = "${item.historyExpression} = ${item.historyResult}",
                                     color = CalcColors.HistoryItemText,
                                     fontSize = 16.sp,
                                     modifier = Modifier.padding(10.dp)
@@ -243,32 +247,33 @@ fun CalculatorScreen() {
                 CalcButton("AC", Modifier.weight(1f), CalcColors.ClearBtn) { clear() }
                 CalcButton("⌫", Modifier.weight(1f), CalcColors.BackspaceBtn) { backspace() }
                 CalcButton("⏱", Modifier.weight(1f), CalcColors.HistoryBtn) { showHistory = !showHistory }
-                CalcButton("÷", Modifier.weight(1f), CalcColors.OperatorBtn) { executeOperation("÷") }
+                CalcButton("÷", Modifier.weight(1f), CalcColors.OperatorBtn) { appendOperator("÷") }
             }
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 CalcButton("7", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("7") }
                 CalcButton("8", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("8") }
                 CalcButton("9", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("9") }
-                CalcButton("×", Modifier.weight(1f), CalcColors.OperatorBtn) { executeOperation("×") }
+                CalcButton("×", Modifier.weight(1f), CalcColors.OperatorBtn) { appendOperator("×") }
             }
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 CalcButton("4", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("4") }
                 CalcButton("5", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("5") }
                 CalcButton("6", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("6") }
-                CalcButton("-", Modifier.weight(1f), CalcColors.OperatorBtn) { executeOperation("-") }
+                CalcButton("-", Modifier.weight(1f), CalcColors.OperatorBtn) { appendOperator("-") }
             }
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 CalcButton("1", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("1") }
                 CalcButton("2", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("2") }
                 CalcButton("3", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("3") }
-                CalcButton("+", Modifier.weight(1f), CalcColors.OperatorBtn) { executeOperation("+") }
+                CalcButton("+", Modifier.weight(1f), CalcColors.OperatorBtn) { appendOperator("+") }
             }
 
             Row(modifier = Modifier.fillMaxWidth()) {
-                CalcButton("0", Modifier.weight(2f), CalcColors.NumberBtn) { appendNumber("0") }
+                CalcButton("( )", Modifier.weight(1f), CalcColors.OperatorBtn) { addParentheses() }
+                CalcButton("0", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber("0") }
                 CalcButton(".", Modifier.weight(1f), CalcColors.NumberBtn) { appendNumber(".") }
                 CalcButton("=", Modifier.weight(1f), CalcColors.EqualsBtn) { calculate() }
             }
